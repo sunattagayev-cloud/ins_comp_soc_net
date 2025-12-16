@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Insurance Social Analytics</title>
+    
+    <!-- Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+    
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary: #4361ee;
+            --primary-dark: #3a0ca3;
+            --orange: #f59e0b;
+            --success: #10b981;
+            --danger: #ef476f;
+            --text-main: #1f2937;
+            --text-secondary: #6b7280;
+            --bg-body: #f3f4f6;
+            --bg-card: #ffffff;
+            --border: #e5e7eb;
+            --radius: 16px;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+
+        body.dark-mode {
+            --bg-body: #0f172a;
+            --bg-card: #1e293b;
+            --text-main: #f8fafc;
+            --text-secondary: #94a3b8;
+            --border: #334155;
+            --primary: #6366f1;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            margin: 0;
+            transition: all 0.3s ease;
+        }
+
+        /* Loading Screen */
+        .loading-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg-body); z-index: 9999;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            transition: opacity 0.5s;
+        }
+        .spinner {
+            width: 50px; height: 50px; border: 5px solid var(--border);
+            border-top-color: var(--primary); border-radius: 50%;
+            animation: spin 1s linear infinite; margin-bottom: 15px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Header */
+        .glass-header {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            padding: 15px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        body.dark-mode .glass-header { background: rgba(30, 41, 59, 0.85); }
+
+        .header-inner {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .brand-box h1 { margin: 0; font-size: 1.3rem; color: var(--primary); display: flex; align-items: center; gap: 10px; }
+        .source-badge { font-size: 0.75rem; color: var(--text-secondary); display: block; margin-top: 4px; }
+
+        .btn-icon {
+            background: transparent; border: 1px solid var(--border); color: var(--text-main);
+            width: 38px; height: 38px; border-radius: 10px; cursor: pointer; transition: 0.2s;
+        }
+        .btn-icon:hover { background: var(--border); color: var(--primary); }
+        .active-lang { background: var(--primary) !important; color: white !important; border-color: var(--primary) !important; }
+
+        /* Layout */
+        .container {
+            max-width: 1400px;
+            margin: 30px auto;
+            padding: 0 20px;
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 25px;
+        }
+        @media (max-width: 1024px) { .container { grid-template-columns: 1fr; } }
+
+        /* Sidebar & Cards */
+        .card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 20px;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+        }
+        .form-select {
+            width: 100%; padding: 10px; border-radius: 10px;
+            border: 1px solid var(--border); background: var(--bg-body); color: var(--text-main);
+            margin-bottom: 15px; outline: none;
+        }
+
+        /* Promo Card */
+        .promo-card {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white; text-align: center; position: relative; overflow: hidden; padding: 25px;
+        }
+        .promo-logo { max-width: 140px; filter: brightness(0) invert(1); margin-bottom: 15px; }
+        .promo-bg {
+            position: absolute; width: 120px; height: 120px; background: rgba(255,255,255,0.1);
+            border-radius: 50%; top: -40px; right: -40px;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .slogan-animate { animation: fadeIn 0.5s ease-out; }
+
+        /* Network Logos */
+        .network-icon-box {
+            width: 50px; height: 50px; border-radius: 14px; 
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem; margin-bottom: 15px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        
+        .tg-style { background: linear-gradient(135deg, #2AABEE, #229ED9); color: white; }
+        .ig-style { background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); color: white; }
+        .fb-style { background: linear-gradient(135deg, #1877F2, #0056b3); color: white; }
+        .yt-style { background: linear-gradient(135deg, #FF0000, #cc0000); color: white; }
+        .li-style { background: linear-gradient(135deg, #0077b5, #005582); color: white; }
+        .x-style { background: #000000; color: white; border: 1px solid #333; }
+        body.dark-mode .x-style { border-color: #555; }
+
+        /* Network Grid */
+        .network-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px;
+        }
+        .network-card {
+            background: var(--bg-card); border-radius: var(--radius); padding: 20px;
+            border: 1px solid var(--border); transition: transform 0.2s, box-shadow 0.2s; cursor: pointer;
+            position: relative; overflow: hidden;
+        }
+        .network-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); border-color: var(--primary); }
+
+        /* KPI Stats */
+        .stats-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 25px;
+        }
+        .stat-card {
+            background: var(--bg-card); padding: 20px; border-radius: var(--radius);
+            border: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;
+            box-shadow: var(--shadow);
+        }
+        .stat-icon {
+            width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
+            font-size: 1.2rem;
+        }
+
+        /* Detail View */
+        .detail-view { display: none; }
+        .detail-view.active { display: block; }
+        
+        .charts-row {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-bottom: 25px;
+        }
+        @media (max-width: 768px) { .charts-row { grid-template-columns: 1fr !important; } }
+        .chart-box { height: 350px; position: relative; }
+
+        /* Table */
+        .table-container { overflow-x: auto; margin-top: 20px; border-radius: 12px; border: 1px solid var(--border); }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { background: var(--bg-body); font-weight: 600; font-size: 0.85rem; color: var(--text-secondary); cursor: pointer; user-select: none; }
+        th:hover { background: rgba(0,0,0,0.05); }
+        tr:hover { background: rgba(0,0,0,0.02); }
+        
+        .bank-link {
+            color: var(--primary); margin-left: 8px; text-decoration: none; font-size: 0.9em;
+        }
+        .bank-link:hover { text-decoration: underline; }
+
+        .back-btn {
+            background: var(--bg-body); border: 1px solid var(--border); color: var(--text-secondary);
+            padding: 8px 16px; border-radius: 8px; cursor: pointer; margin-bottom: 20px; display: inline-flex; align-items: center; gap: 5px;
+        }
+        .back-btn:hover { background: var(--border); color: var(--primary); }
+
+        /* Footer */
+        .footer {
+            text-align: center; padding: 20px; margin-top: 30px; 
+            color: var(--text-secondary); font-size: 0.85rem; border-top: 1px solid var(--border);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Loading Screen -->
+    <div class="loading-overlay" id="loader">
+        <div class="spinner"></div>
+        <p style="font-weight:500;">Ma'lumotlar yuklanmoqda...</p>
+    </div>
+
+    <!-- Header -->
+    <header class="glass-header">
+        <div class="header-inner">
+            <div class="brand-box">
+                <h1><i class="fa-solid fa-shield-heart"></i> <span id="t-brand">Insurance Analytics</span></h1>
+                <span class="source-badge" id="t-subtitle">Sug'urta tashkilotlarining ijtimoiy tarmoqlardagi faolligi</span>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button class="btn-icon" onclick="toggleTheme()" title="Mavzu"><i class="fa-solid fa-moon"></i></button>
+                <div style="display:flex; border:1px solid var(--border); border-radius:10px; overflow:hidden;">
+                    <button class="btn-icon active-lang" onclick="setLang('uz')" id="btn-uz">UZ</button>
+                    <button class="btn-icon" style="border-left:1px solid var(--border); border-right:1px solid var(--border)" onclick="setLang('ru')" id="btn-ru">RU</button>
+                    <button class="btn-icon" onclick="setLang('en')" id="btn-en">EN</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Sidebar -->
+        <aside>
+            <div class="card">
+                <h3><i class="fa-solid fa-filter"></i> <span id="t-filter">Filtrlash</span></h3>
+                
+                <label id="t-org">Tashkilot</label>
+                <select id="filter-org" class="form-select" onchange="renderApp()">
+                    <option value="">— Barchasi —</option>
+                </select>
+
+                <label id="t-period">Davr</label>
+                <select id="filter-period" class="form-select" onchange="renderApp()">
+                    <!-- JS -->
+                </select>
+
+                <button class="btn-icon" style="width:100%; border-radius:8px;" onclick="resetFilters()">
+                    <i class="fa-solid fa-rotate-right"></i> <span id="t-reset">Tozalash</span>
+                </button>
+            </div>
+
+            <div class="card promo-card">
+                <div class="promo-bg"></div>
+                <img src="https://snsratings.uz/static/media/logo.b58a119151d230b7d82af1dfaf415791.svg" class="promo-logo">
+                <div style="position:relative; z-index:2;">
+                    <h4 id="t-slogan-title" style="margin:0; font-size:1rem;">Professional Tahlil</h4>
+                    <p id="t-slogan-text" class="slogan-animate" style="font-size:0.8rem; opacity:0.9; margin-top:8px; font-style:italic; font-weight:500;">
+                        Sug'urta va Ijtimoiy Media — Zamonaviy Himoya
+                    </p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main -->
+        <main>
+            <!-- KPI -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div>
+                        <p id="t-kpi-subs" style="font-size:0.85rem; color:var(--text-secondary)">Jami Obunachilar</p>
+                        <h3 style="margin:5px 0; font-size:1.5rem;" id="kpi-total-subs">0</h3>
+                    </div>
+                    <div class="stat-icon" style="background: rgba(67,97,238,0.1); color: var(--primary);">
+                        <i class="fa-solid fa-users"></i>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div>
+                        <p id="t-kpi-net" style="font-size:0.85rem; color:var(--text-secondary)">Eng faol tarmoq</p>
+                        <h3 style="margin:5px 0; font-size:1.2rem;" id="kpi-top-net">-</h3>
+                    </div>
+                    <div class="stat-icon" style="background: rgba(245,158,11,0.1); color: var(--orange);">
+                        <i class="fa-solid fa-fire"></i>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div>
+                        <p id="t-kpi-bank" style="font-size:0.85rem; color:var(--text-secondary)">Yetakchi Kompaniya</p>
+                        <h3 style="margin:5px 0; font-size:1.2rem;" id="kpi-top-bank">-</h3>
+                    </div>
+                    <div class="stat-icon" style="background: rgba(16,185,129,0.1); color: var(--success);">
+                        <i class="fa-solid fa-trophy"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- View 1: Overview -->
+            <div id="view-overview" class="detail-view active">
+                <h3 id="t-overview-title" style="margin-bottom:20px;">Tarmoqlar bo'yicha ko'rsatkichlar</h3>
+                <div class="network-grid" id="network-container"></div>
+            </div>
+
+            <!-- View 2: Detail -->
+            <div id="view-detail" class="detail-view">
+                <button class="back-btn" onclick="showOverview()"><i class="fa-solid fa-arrow-left"></i> <span id="t-back">Ortga</span></button>
+                <h2 id="detail-title" style="margin: 10px 0 20px 0; display:flex; align-items:center; gap:10px;"></h2>
+
+                <div class="charts-row" id="charts-row-container">
+                    <div class="card" id="card-chart-bar">
+                        <h4 id="t-chart-bar" style="margin:0 0 15px 0;">Top 10 Kompaniya</h4>
+                        <div class="chart-box"><canvas id="chart-bar"></canvas></div>
+                    </div>
+                    <div class="card" id="card-chart-line">
+                        <h4 id="t-chart-line" style="margin:0 0 15px 0;">O'sish dinamikasi</h4>
+                        <div class="chart-box"><canvas id="chart-line"></canvas></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                        <h4 id="t-table-title" style="margin:0;">Jadval</h4>
+                        <button onclick="exportTableToExcel()" class="btn-icon" style="width:auto; padding:0 15px;"><i class="fa-solid fa-file-excel"></i> Excel</button>
+                    </div>
+                    <div class="table-container">
+                        <table id="detail-table"></table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div class="footer">
+        © 2025 Standard and Sensitive Ratings
+    </div>
+
+    <!-- MAIN LOGIC -->
+    <script>
+        const API_URL = "https://raw.githubusercontent.com/sunattagayev-cloud/ins_comp_soc_net/refs/heads/main/ins_comp_soc_net_base.json";
+        let data = [];
+
+        // TRANSLATIONS (Adapted for Insurance)
+        const i18n = {
+            uz: {
+                brand: "Sug'urta Tashkilotlari Tahlili", filter: "Filtrlash", org: "Tashkilot (Sug'urta)", period: "Davr", all: "— Barchasi —",
+                reset: "Tozalash", sloganT: "Professional Tahlil", 
+                kpiSubs: "Jami Obunachilar", kpiNet: "Eng faol tarmoq", kpiBank: "Yetakchi Kompaniya",
+                overTitle: "Tarmoqlar bo'yicha ko'rsatkichlar", back: "Ortga",
+                chartBar: "Top 10 Kompaniya", chartLine: "O'sish dinamikasi", 
+                chartLineAll: "Jami bozor dinamikasi (Barcha tashkilotlar)",
+                tableT: "Batafsil Jadval",
+                thBank: "Tashkilot Nomi", thSubs: "Obunachilar", thPubs: "Nashrlar", thReach: "Qamrov / Ko'rishlar", thEmp: "Xodimlar soni", thDate: "Sana",
+                dataPoints: "Ma'lumotlar soni", subtitle: "Sug'urta tashkilotlarining ijtimoiy tarmoqlardagi faolligi",
+                chartHist: "Tarixiy statistika",
+                net: { TELEGRAM:"Telegram", INSTAGRAM:"Instagram", FACEBOOK:"Facebook", YOUTUBE:"YouTube", LINKEDIN:"LinkedIn", X_COM:"X (Twitter)" }
+            },
+            ru: {
+                brand: "Страховая Аналитика", filter: "Фильтр", org: "Организация (Страхование)", period: "Период", all: "— Все —",
+                reset: "Сбросить", sloganT: "Профессиональный Анализ", slogan: "Страхование и Социальные Медиа — Новая Эра",
+                kpiSubs: "Всего подписчиков", kpiNet: "Активная сеть", kpiBank: "Лидер Компания",
+                overTitle: "Показатели по сетям", back: "Назад",
+                chartBar: "Топ 10 Компаний", chartLine: "Динамика роста", 
+                chartLineAll: "Динамика рынка (Все компании)",
+                tableT: "Подробная таблица",
+                thBank: "Название Организации", thSubs: "Подписчики", thPubs: "Публикации", thReach: "Охват / Просмотры", thEmp: "Сотрудники", thDate: "Дата",
+                dataPoints: "Точек данных", subtitle: "Активность страховых организаций в социальных сетях",
+                chartHist: "Историческая статистика",
+                net: { TELEGRAM:"Telegram", INSTAGRAM:"Instagram", FACEBOOK:"Facebook", YOUTUBE:"YouTube", LINKEDIN:"LinkedIn", X_COM:"X (Twitter)" }
+            },
+            en: {
+                brand: "Insurance Social Analytics", filter: "Filter", org: "Organization (Insurance)", period: "Period", all: "— All —",
+                reset: "Reset", sloganT: "Professional Analysis", slogan: "Insurance and Social Media — A New Era",
+                kpiSubs: "Total Subscribers", kpiNet: "Top Network", kpiBank: "Leading Company",
+                overTitle: "Network Overview", back: "Back",
+                chartBar: "Top 10 Companies", chartLine: "Growth Trend", 
+                chartLineAll: "Market Growth Trend (All Companies)",
+                tableT: "Detailed Table",
+                thBank: "Organization Name", thSubs: "Subscribers", thPubs: "Publications", thReach: "Reach / Views", thEmp: "Employees", thDate: "Date",
+                dataPoints: "Data points", subtitle: "Insurance companies activity on social networks",
+                chartHist: "Historical Statistics",
+                net: { TELEGRAM:"Telegram", INSTAGRAM:"Instagram", FACEBOOK:"Facebook", YOUTUBE:"YouTube", LINKEDIN:"LinkedIn", X_COM:"X (Twitter)" }
+            }
+        };
+
+        // INSURANCE SLOGANS
+        const slogans = {
+            uz: [
+                "Xavfsiz kelajak — raqamli ishonchdan boshlanadi",
+                "Sug'urta va Ijtimoiy Media — zamonaviy himoya",
+                "Har bir obunachi — himoyalangan mijoz",
+                "Raqobatda doimo bir qadam oldinda bo'ling",
+                "Ishonchli sug'urta — shaffoflikdan boshlanadi"
+            ],
+            ru: [
+                "Безопасное будущее — начинается с цифрового доверия",
+                "Страхование и Социальные Медиа — современная защита",
+                "Каждый подписчик — защищенный клиент",
+                "Будьте всегда на шаг впереди конкурентов",
+                "Надежное страхование — это прозрачность"
+            ],
+            en: [
+                "A safe future starts with digital trust",
+                "Insurance and Social Media — modern protection",
+                "Every subscriber is a protected client",
+                "Always stay one step ahead of the competition",
+                "Reliable insurance starts with transparency"
+            ]
+        };
+
+        const networks = {
+            TELEGRAM: { icon: 'fa-regular fa-paper-plane', bg: 'tg-style', color: '#229ED9', base: 'https://t.me/' },
+            INSTAGRAM: { icon: 'fa-brands fa-instagram', bg: 'ig-style', color: '#E1306C', base: 'https://instagram.com/' },
+            FACEBOOK: { icon: 'fa-brands fa-facebook-f', bg: 'fb-style', color: '#1877F2', base: 'https://facebook.com/' },
+            YOUTUBE: { icon: 'fa-brands fa-youtube', bg: 'yt-style', color: '#FF0000', base: 'https://youtube.com/' },
+            LINKEDIN: { icon: 'fa-brands fa-linkedin-in', bg: 'li-style', color: '#0077B5', base: 'https://linkedin.com/company/' },
+            X_COM: { icon: 'fa-brands fa-x-twitter', bg: 'x-style', color: '#000000', base: 'https://x.com/' }
+        };
+
+        let currentLang = 'uz';
+        let currentDetailNet = null;
+        let chartBar = null;
+        let chartLine = null;
+        let sortDir = -1; 
+
+        const fmt = (n) => n ? n.toLocaleString() : '0';
+
+        function fixLink(brokenLink, type) {
+            if (!brokenLink) return '#';
+            if (brokenLink.startsWith('http')) return brokenLink;
+            let clean = brokenLink.replace(/^\.\.\./, '').replace(/^\//, '').replace(/\/$/, '');
+            const base = networks[type] ? networks[type].base : '';
+            return base + clean;
+        }
+
+        function updateSlogan() {
+            const list = slogans[currentLang];
+            const rand = list[Math.floor(Math.random() * list.length)];
+            const el = document.getElementById('t-slogan-text');
+            el.classList.remove('slogan-animate');
+            void el.offsetWidth; 
+            el.textContent = rand;
+            el.classList.add('slogan-animate');
+        }
+
+        // --- INIT with FETCH ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                document.body.classList.add('dark-mode');
+            }
+            await fetchData();
+        });
+
+        async function fetchData() {
+            try {
+                const response = await fetch(API_URL);
+                if (!response.ok) throw new Error("Tarmoq xatosi");
+                
+                const text = await response.text();
+                try {
+                    data = JSON.parse(text);
+                } catch(e) {
+                    console.error("JSON Error", e);
+                    data = [];
+                }
+
+                if(!Array.isArray(data)) data = [];
+
+                document.getElementById('loader').style.display = 'none';
+
+                initFilters();
+                renderApp();
+
+            } catch (error) {
+                document.getElementById('loader').innerHTML = `<div style="text-align:center; color:red"><h3>Ma'lumot yuklanmadi</h3><button onclick="location.reload()">Qayta urinish</button></div>`;
+                console.error(error);
+            }
+        }
+
+        function setLang(l) {
+            currentLang = l;
+            ['uz','ru','en'].forEach(x => document.getElementById('btn-'+x).classList.remove('active-lang'));
+            document.getElementById('btn-'+l).classList.add('active-lang');
+            updateLangTexts();
+            renderApp();
+        }
+
+        function updateLangTexts() {
+            const t = i18n[currentLang];
+            document.getElementById('t-brand').textContent = t.brand;
+            document.getElementById('t-subtitle').textContent = t.subtitle;
+            document.getElementById('t-filter').textContent = t.filter;
+            document.getElementById('t-org').textContent = t.org;
+            document.getElementById('t-period').textContent = t.period;
+            document.getElementById('t-reset').textContent = t.reset;
+            document.getElementById('t-slogan-title').textContent = t.sloganT;
+            
+            document.getElementById('t-kpi-subs').textContent = t.kpiSubs;
+            document.getElementById('t-kpi-net').textContent = t.kpiNet;
+            document.getElementById('t-kpi-bank').textContent = t.kpiBank;
+            document.getElementById('t-overview-title').textContent = t.overTitle;
+            document.getElementById('t-back').textContent = t.back;
+            document.getElementById('t-chart-bar').textContent = t.chartBar; 
+            document.getElementById('t-table-title').textContent = t.tableT;
+            
+            document.querySelector('#filter-org option[value=""]').textContent = t.all;
+        }
+
+        function toggleTheme() {
+            document.body.classList.toggle('dark-mode');
+            if(currentDetailNet) openDetail(currentDetailNet);
+        }
+
+        function initFilters() {
+            const orgs = [...new Set(data.map(d => d.OrgName))].sort();
+            const periods = [...new Set(data.map(d => d.Period))].sort().reverse();
+
+            const orgSel = document.getElementById('filter-org');
+            orgs.forEach(o => { orgSel.add(new Option(o, o)); });
+
+            const perSel = document.getElementById('filter-period');
+            perSel.innerHTML = ""; 
+            periods.forEach(p => { perSel.add(new Option(p.replace('_','.'), p)); });
+            if(periods.length) perSel.value = periods[0];
+        }
+
+        function resetFilters() {
+            document.getElementById('filter-org').value = "";
+            const periods = [...new Set(data.map(d => d.Period))].sort().reverse();
+            if(periods.length) document.getElementById('filter-period').value = periods[0];
+            renderApp();
+        }
+
+        function renderApp() {
+            updateSlogan();
+            if(currentDetailNet) openDetail(currentDetailNet);
+            else renderOverview();
+        }
+
+        function renderOverview() {
+            document.getElementById('view-overview').classList.add('active');
+            document.getElementById('view-detail').classList.remove('active');
+            currentDetailNet = null;
+
+            const org = document.getElementById('filter-org').value;
+            const period = document.getElementById('filter-period').value;
+
+            // Split Logic:
+            // Counts -> All History (if org selected) or Period Snapshot (if all)
+            // Values (Subs) -> ALWAYS Period Snapshot
+            
+            let subsetForCount = data;
+            let subsetForValues = data;
+
+            if (org) {
+                // Single Org
+                subsetForCount = data.filter(d => d.OrgName === org); 
+                subsetForValues = data.filter(d => d.OrgName === org && d.Period === period); 
+            } else {
+                // All Orgs
+                subsetForCount = data.filter(d => d.Period === period); 
+                subsetForValues = subsetForCount;                       
+            }
+
+            const grid = document.getElementById('network-container');
+            grid.innerHTML = "";
+
+            const stats = {};
+            let totalSubs = 0;
+            let topBank = { name: '-', val: 0 };
+
+            // 1. Calculate Counts
+            subsetForCount.forEach(d => {
+                if(!stats[d.SOC_NET]) stats[d.SOC_NET] = { subs:0, count:0 };
+                stats[d.SOC_NET].count++;
+            });
+
+            // 2. Calculate Subs & Top
+            subsetForValues.forEach(d => {
+                if(!stats[d.SOC_NET]) stats[d.SOC_NET] = { subs:0, count:0 }; 
+                
+                const s = d.Subscribers || 0;
+                stats[d.SOC_NET].subs += s;
+                totalSubs += s;
+
+                if(s > topBank.val) topBank = { name: d.OrgName, val: s };
+            });
+
+            let topNet = "-";
+            let topNetVal = 0;
+            Object.entries(stats).forEach(([k,v]) => {
+                if(v.subs > topNetVal) { topNetVal = v.subs; topNet = k; }
+            });
+
+            document.getElementById('kpi-total-subs').innerText = fmt(totalSubs);
+            document.getElementById('kpi-top-net').innerText = i18n[currentLang].net[topNet] || topNet;
+            document.getElementById('kpi-top-bank').innerText = topBank.name;
+
+            Object.keys(networks).forEach(key => {
+                const conf = networks[key];
+                const s = stats[key] || { subs:0, count:0 };
+                
+                const card = document.createElement('div');
+                card.className = 'network-card';
+                card.onclick = () => openDetail(key);
+                card.innerHTML = `
+                    <div class="network-icon-box ${conf.bg}">
+                        <i class="${conf.icon}"></i>
+                    </div>
+                    <h3 style="margin:0 0 5px 0;">${i18n[currentLang].net[key]}</h3>
+                    <div style="font-size:1.4rem; font-weight:700;">${fmt(s.subs)}</div>
+                    <div style="font-size:0.85rem; color:var(--text-secondary); margin-top:5px;">
+                        ${s.count} ${i18n[currentLang].dataPoints}
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function showOverview() {
+            renderOverview();
+        }
+
+        function openDetail(netKey) {
+            currentDetailNet = netKey;
+            document.getElementById('view-overview').classList.remove('active');
+            document.getElementById('view-detail').classList.add('active');
+
+            const conf = networks[netKey];
+            const t = i18n[currentLang];
+            document.getElementById('detail-title').innerHTML = 
+                `<span style="color:${conf.color}; margin-right:10px;"><i class="${conf.icon} fa-lg"></i></span> ${t.net[netKey]}`;
+
+            const org = document.getElementById('filter-org').value;
+            const period = document.getElementById('filter-period').value;
+            
+            let rawNetData = data.filter(d => d.SOC_NET === netKey);
+
+            let tableData = []; 
+            let barLabels = [], barValues = [];
+            let lineLabels = [], lineValues = [];
+
+            const containerRow = document.getElementById('charts-row-container');
+            const cardBar = document.getElementById('card-chart-bar');
+
+            if (org) {
+                // --- SINGLE ORG ---
+                cardBar.style.display = 'none';
+                containerRow.style.gridTemplateColumns = '1fr'; 
+
+                const bankData = rawNetData.filter(d => d.OrgName === org);
+                bankData.sort((a,b) => a.Period.localeCompare(b.Period));
+                
+                lineLabels = bankData.map(d => d.Period.replace('_','.'));
+                lineValues = bankData.map(d => d.Subscribers);
+                
+                tableData = [...bankData];
+
+                document.getElementById('t-chart-line').textContent = `${org} — ${t.chartHist}`;
+                renderCharts(null, null, lineLabels, lineValues, conf);
+
+            } else {
+                // --- ALL ORGS ---
+                cardBar.style.display = 'block';
+                containerRow.style.gridTemplateColumns = ''; 
+
+                const snapshotData = rawNetData.filter(d => d.Period === period);
+                
+                const sortedSnapshot = [...snapshotData].sort((a,b) => b.Subscribers - a.Subscribers).slice(0, 10);
+                barLabels = sortedSnapshot.map(d => d.OrgName);
+                barValues = sortedSnapshot.map(d => d.Subscribers);
+                
+                tableData = snapshotData; 
+
+                // Line: Market Trend
+                const aggStats = {};
+                rawNetData.forEach(d => {
+                    if (!aggStats[d.Period]) aggStats[d.Period] = 0;
+                    aggStats[d.Period] += (d.Subscribers || 0);
+                });
+                
+                const sortedPeriods = Object.keys(aggStats).sort();
+                lineLabels = sortedPeriods.map(p => p.replace('_','.'));
+                lineValues = sortedPeriods.map(p => aggStats[p]);
+
+                document.getElementById('t-chart-bar').textContent = t.chartBar;
+                document.getElementById('t-chart-line').textContent = t.chartLineAll || t.chartLine;
+
+                renderCharts(barLabels, barValues, lineLabels, lineValues, conf);
+            }
+
+            renderTableSortable(tableData, conf);
+        }
+
+        function renderCharts(barLabels, barValues, lineLabels, lineValues, conf) {
+            const isDark = document.body.classList.contains('dark-mode');
+            const colorTxt = isDark ? '#ccc' : '#555';
+
+            if (chartBar) { chartBar.destroy(); chartBar = null; }
+            if (chartLine) { chartLine.destroy(); chartLine = null; }
+
+            if (barLabels && barValues && barLabels.length > 0) {
+                const ctxBar = document.getElementById('chart-bar').getContext('2d');
+                chartBar = new Chart(ctxBar, {
+                    type: 'bar',
+                    data: {
+                        labels: barLabels,
+                        datasets: [{ label:'Subscribers', data:barValues, backgroundColor: conf.color, borderRadius:4 }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: {display:false} },
+                        scales: { x:{ticks:{color:colorTxt}}, y:{ticks:{color:colorTxt, autoSkip:false}} }
+                    }
+                });
+            }
+
+            if (lineLabels && lineValues && lineLabels.length > 0) {
+                const ctxLine = document.getElementById('chart-line').getContext('2d');
+                const grad = ctxLine.createLinearGradient(0,0,0,300);
+                grad.addColorStop(0, conf.color); grad.addColorStop(1, 'rgba(255,255,255,0)');
+                if (isDark) grad.addColorStop(1, 'rgba(30,30,30,0)');
+                
+                chartLine = new Chart(ctxLine, {
+                    type: 'line',
+                    data: {
+                        labels: lineLabels,
+                        datasets: [{ label:'Jami', data:lineValues, borderColor:conf.color, backgroundColor:grad, fill:true, tension:0.3 }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: {display:false} },
+                        scales: { x:{ticks:{color:colorTxt}}, y:{ticks:{color:colorTxt}} }
+                    }
+                });
+            }
+        }
+
+        function renderTableSortable(data, conf) {
+            const table = document.getElementById('detail-table');
+            const t = i18n[currentLang];
+            const net = currentDetailNet;
+
+            let cols = [
+                { key: 'OrgName', title: t.thBank, isLink: true },
+                { key: 'Subscribers', title: t.thSubs }
+            ];
+
+            if(!['LINKEDIN'].includes(net)) cols.push({ key: 'Publications', title: t.thPubs });
+            
+            if(net === 'LINKEDIN') cols.push({ key: 'EmployeeCount', title: t.thEmp });
+            else if (!['INSTAGRAM','FACEBOOK','X_COM'].includes(net)) {
+                cols.push({ key: 'ReachPerPost', title: (net==='YOUTUBE'? t.thReach.replace('Qamrov','Ko\'rish') : t.thReach) });
+            }
+            cols.push({ key: 'Period', title: t.thDate });
+
+            let thead = '<thead><tr>';
+            cols.forEach(c => {
+                thead += `<th onclick="sortTable('${c.key}')">${c.title} <i class="fa-solid fa-sort"></i></th>`;
+            });
+            thead += '</tr></thead>';
+
+            const sorted = data.sort((a,b) => (b.Subscribers||0) - (a.Subscribers||0));
+            
+            let tbody = '<tbody>';
+            if (sorted.length === 0) {
+                tbody = `<tbody><tr><td colspan="${cols.length}" style="text-align:center; padding:15px;">Ma'lumot topilmadi</td></tr></tbody>`;
+            } else {
+                sorted.forEach(row => {
+                    tbody += '<tr>';
+                    cols.forEach(c => {
+                        let val = row[c.key] || '-';
+                        if(c.key === 'ReachPerPost' && net === 'YOUTUBE') val = row.Views || '-';
+                        if(typeof val === 'number') val = fmt(val);
+                        if(c.key === 'Period') val = val.replace('_','.');
+
+                        if(c.isLink) {
+                            const fullLink = fixLink(row.ChannelLink, currentDetailNet);
+                            tbody += `<td>${val} 
+                                <a href="${fullLink}" target="_blank" class="bank-link"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+                            </td>`;
+                        } else {
+                            tbody += `<td>${val}</td>`;
+                        }
+                    });
+                    tbody += '</tr>';
+                });
+            }
+            tbody += '</tbody>';
+
+            table.innerHTML = thead + tbody;
+            table.dataset.cols = JSON.stringify(cols);
+            table.dataset.rows = JSON.stringify(data);
+        }
+
+        window.sortTable = function(key) {
+            sortDir *= -1; 
+            const table = document.getElementById('detail-table');
+            const dataRow = JSON.parse(table.dataset.rows || "[]");
+            
+            dataRow.sort((a,b) => {
+                let va = a[key], vb = b[key];
+                if(typeof va === 'string') return sortDir * va.localeCompare(vb);
+                return sortDir * ((va||0) - (vb||0));
+            });
+
+            let cols = JSON.parse(table.dataset.cols);
+            let tbody = '';
+            
+            if(dataRow.length === 0) {
+                 tbody = `<tr><td colspan="${cols.length}" style="text-align:center">-</td></tr>`;
+            } else {
+                dataRow.forEach(row => {
+                    tbody += '<tr>';
+                    cols.forEach(c => {
+                        let val = row[c.key] || '-';
+                        if(c.key === 'ReachPerPost' && currentDetailNet === 'YOUTUBE') val = row.Views || '-';
+                        if(typeof val === 'number') val = fmt(val);
+                        if(c.key === 'Period') val = val.replace('_','.');
+
+                        if(c.isLink) {
+                            const fullLink = fixLink(row.ChannelLink, currentDetailNet);
+                            tbody += `<td>${val} <a href="${fullLink}" target="_blank" class="bank-link"><i class="fa-solid fa-arrow-up-right-from-square"></i></a></td>`;
+                        } else {
+                            tbody += `<td>${val}</td>`;
+                        }
+                    });
+                    tbody += '</tr>';
+                });
+            }
+            table.querySelector('tbody').innerHTML = tbody;
+        };
+
+        function exportTableToExcel() {
+            const wb = XLSX.utils.table_to_book(document.getElementById('detail-table'));
+            XLSX.writeFile(wb, `Report_${currentDetailNet}.xlsx`);
+        }
+    </script>
+</body>
+</html>
